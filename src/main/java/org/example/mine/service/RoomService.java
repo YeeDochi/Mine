@@ -1,6 +1,7 @@
 package org.example.mine.service;
 
 import org.example.mine.dto.BaseGameRoom;
+import org.example.mine.dto.MineRoom;
 import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,12 +10,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RoomService {
     private final Map<String, BaseGameRoom> rooms = new ConcurrentHashMap<>();
 
-    public BaseGameRoom createRoom(String name) {
-        // ★ 새 게임 만들 때 여기만 구현 클래스로 변경 (예: new OmokRoom(name))
-        // BaseGameRoom room = new MyNewGameRoom(name);
-        // rooms.put(room.getRoomId(), room);
-        // return room;
-        return null; // 템플릿이라 null 처리, 실제 구현 시 수정 필요
+    public MineRoom createRoom(String name) {
+        MineRoom room = new MineRoom(name);
+        rooms.put(room.getRoomId(), room);
+        return room;
     }
 
     public BaseGameRoom findRoom(String roomId) {
