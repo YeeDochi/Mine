@@ -176,9 +176,13 @@ public class MineRoom extends BaseGameRoom {
 
         GameMessage msg = makeStateMessage(type, content);
         msg.getData().put("isWin", isWin);
-        // 승자 명단이 있으면 콤마로 합쳐서 보냄 (클라이언트 표시용)
+
+        // 승자 명단이 있으면
         if (winnerIds != null && !winnerIds.isEmpty()) {
-            // 실제 이름으로 변환
+
+            msg.getData().put("winnerIds", winnerIds);
+
+            // (기존 코드: 화면 표시용 이름만 넣고 있음)
             String winnerNames = winnerIds.stream()
                     .map(id -> users.get(id).getNickname())
                     .collect(Collectors.joining(", "));

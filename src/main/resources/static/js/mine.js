@@ -132,7 +132,6 @@ function renderUserList(names, eliminatedIds, currentTurnId) {
         listEl.appendChild(row);
     });
 }
-// [mine.js] renderBoard 함수 전체 교체
 
 function renderBoard(data, myId) {
     const boardEl = document.getElementById("board");
@@ -144,57 +143,57 @@ function renderBoard(data, myId) {
     const cols = data.board[0].length;
 
     // ============================================================
-    // ★ [수정] "무조건 채워넣기" (Fit-to-Width) 로직
+    // ★ [수정] "무조건 가로 기준" (Width-First) 로직
     // ============================================================
 
-    // 1. 현재 화면의 전체 너비 가져오기
-    // stageEl.clientWidth를 쓰면 스크롤바 영역 등이 포함될 수 있어 window.innerWidth가 모바일엔 더 안전합니다.
+    // 1. 화면 크기 측정
     const isMobile = window.innerWidth <= 768;
+    // 모바일은 윈도우 너비 기준, PC는 컨테이너 기준
     const screenW = isMobile ? window.innerWidth : stageEl.clientWidth;
-    const screenH = isMobile ? (window.innerHeight * 0.6) : stageEl.clientHeight; // 모바일은 높이 60% 정도만 사용
 
-    // 2. 뺄 거 다 빼기 (패딩 + 보더 + 갭)
-    // 모바일: 좌우 패딩 합쳐서 10px(여유값)
-    // PC: 좌우 패딩 합쳐서 40px
-    const totalPaddingX = isMobile ? 12 : 40;
-    const totalPaddingY = isMobile ? 12 : 40;
+    // 2. 가용 공간 계산
+    // 모바일: 좌우 여백을 최소화 (약 10px) -> 화면 꽉 채우기 위함
+    // PC: 좌우 여백 40px
+    const paddingX = isMobile ? 10 : 40;
 
-    // 셀 사이의 간격 (CSS gap: 2px)
-    const gap = 1; // 2px로 하면 모바일에서 너무 벌어지니 1px로 줄이거나 계산식에 반영
+    const gap = 1; // 셀 간격 1px
     boardEl.style.gap = `${gap}px`;
 
-    // 갭이 차지하는 총 너비 = (칸수 - 1) * 갭크기
     const totalGapW = (cols - 1) * gap;
-    const totalGapH = (rows - 1) * gap;
+    const availableW = screenW - paddingX - totalGapW;
 
-    // 3. 순수하게 셀들이 사용할 수 있는 공간 계산
-    const availableW = screenW - totalPaddingX - totalGapW;
-    const availableH = screenH - totalPaddingY - totalGapH;
-
-    // 4. 나눗셈! (공간 / 칸수) -> 소수점 내림
+    // 3. 셀 크기 계산 (오직 가로 공간을 칸 수로 나눔)
     const cellW = Math.floor(availableW / cols);
-    const cellH = Math.floor(availableH / rows);
 
-    // 5. 가로/세로 중 더 작은 쪽에 맞춰서 정사각형 만들기
-    // (단, PC에서는 너무 커지면 안되니 최대값 45px 제한은 둠)
-    let optimalSize = Math.min(cellW, cellH);
+    let optimalSize = cellW;
 
-    // ★ [핵심] 최소 크기 제한(10px)을 제거했습니다.
-    // 대신 0px이 되면 안보이니까 최소 5px 정도의 안전장치만 둡니다.
-    if (optimalSize < 5) optimalSize = 5;
+    // 4. 높이 제한 (PC만 적용)
+    // 모바일은 가로를 꽉 채우는 게 우선이므로 높이 때문에 쪼그라들지 않게 함
+    if (!isMobile) {
+        const screenH = stageEl.clientHeight;
+        const paddingY = 40;
+        const totalGapH = (rows - 1) * gap;
+        const availableH = screenH - paddingY - totalGapH;
+        const cellH = Math.floor(availableH / rows);
 
-    // PC에서 너무 커지는 것만 방지
-    if (!isMobile && optimalSize > 40) optimalSize = 40;
+        // PC는 너무 커지면 안 되니까 높이 제한도 고려
+        optimalSize = Math.min(cellW, cellH);
+        if (optimalSize > 40) optimalSize = 40; // 최대 크기 제한
+    } else {
+        // [모바일] 가로 폭 기준으로만 설정 (최소 5px 안전장치만 유지)
+        if (optimalSize < 5) optimalSize = 5;
+    }
 
-    // 6. 스타일 적용
+    // 5. 스타일 적용
+    // 계산된 optimalSize를 가로/세로 모두에 적용 -> 정사각형 보장
     boardEl.style.setProperty('--cell-size', `${optimalSize}px`);
-    // auto-fill 대신 1fr로 강제 등분
     boardEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
     // ============================================================
 
     boardEl.innerHTML = "";
 
+    // ... (이하 기존 로직 동일: 클래스 추가, 이벤트 연결 등) ...
     const isEliminated = data.eliminatedUsers && data.eliminatedUsers.includes(myId);
     const isMyTurn = (data.currentTurnId === myId);
     const canInteract = data.playing && !isEliminated && isMyTurn;

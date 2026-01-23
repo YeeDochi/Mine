@@ -88,7 +88,7 @@ public class GameService {
     public void endGame(String roomId, List<Player> players, List<String> winnerIds) {
         // winnerIds가 null이면(전원 탈락 등) 아무도 점수를 못 받음
         if (winnerIds == null) return;
-
+        System.out.println(winnerIds);
         for (Player player : players) {
             if (player.getDbUsername() == null) continue;
 
