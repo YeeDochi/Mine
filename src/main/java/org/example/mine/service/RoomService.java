@@ -10,8 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RoomService {
     private final Map<String, BaseGameRoom> rooms = new ConcurrentHashMap<>();
 
-    public MineRoom createRoom(String name) {
-        MineRoom room = new MineRoom(name);
+    public MineRoom createRoom(String name, int rows, int cols, int mines) {
+        MineRoom room = new MineRoom(name, rows, cols, mines);
         rooms.put(room.getRoomId(), room);
         return room;
     }

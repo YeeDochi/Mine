@@ -28,7 +28,7 @@ public class GameService {
             String realId = (String) message.getData().get("dbUsername");
             if (realId != null && !realId.equals("null") && !realId.isEmpty()) {
                 newPlayer.setDbUsername(realId);
-                System.out.println("✅ 로그인 유저 입장: " + newPlayer.getSender() + " (" + realId + ")");
+                System.out.println("✅ 로그인 유저 입장: " + newPlayer.getNickname() + " (" + realId + ")");
             }
         }
 
@@ -67,18 +67,17 @@ public class GameService {
     // 게임 행동 처리 (핵심)
     public void handleGameAction(String roomId, GameMessage message) {
         BaseGameRoom room = roomService.findRoom(roomId);
-        if (room == null) return;
-
-        GameMessage result = room.handleAction(message);
-
-        if (result != null) {
-            // [추가] 게임 종료 신호가 오면 점수 저장 로직 실행
-            if ("GAME_OVER".equals(result.getType())) {
-                // 방에 있는 모든 유저 정보를 넘겨줌
-                endGame(roomId, new ArrayList<>(room.getUsers().values()));
+        if (room != null) {
+            GameMessage result = room.handleAction(message);
+            if (result != null) {
+                // GAME_OVER일 때 승자 정보 추출
+                if ("GAME_OVER".equals(result.getType())) {
+                    List<String> winnerIds = (List<String>) result.getData().get("winnerIds");
+                    // endGame에 승자 명단 전달
+                    endGame(roomId, new ArrayList<>(room.getUsers().values()), winnerIds);
+                }
+                broadcast(roomId, result);
             }
-
-            broadcast(roomId, result);
         }
     }
 
@@ -86,31 +85,21 @@ public class GameService {
         // 정답 체크 로직이 필요하면 여기서 room.checkAnswer() 등을 호출 가능
         broadcast(roomId, message);
     }
-    public void endGame(String roomId, List<Player> players) {
-        BaseGameRoom room = roomService.findRoom(roomId);
-        if (room == null) return; // 방어 로직 추가
+    public void endGame(String roomId, List<Player> players, List<String> winnerIds) {
+        // winnerIds가 null이면(전원 탈락 등) 아무도 점수를 못 받음
+        if (winnerIds == null) return;
 
         for (Player player : players) {
-            // 1. 비회원 건너뛰기
-            if (player.getDbUsername() == null) {
-                continue;
+            if (player.getDbUsername() == null) continue;
+
+            if (winnerIds.contains(player.getId())) {
+                scoreSender.sendScore(
+                        player.getDbUsername(),
+                        "Mine",
+                        -1
+                );
+                System.out.println("🏆 승리 기록 전송: " + player.getNickname());
             }
-
-            // 2. 점수 가져오기 (형변환 필요)
-            // [주의] 실제 만드시는 게임 Room 클래스 이름으로 변경하세요 (예: OmokRoom)
-            int totalScore = 0;
-//            if (room instanceof org.example.templets.dto.MyGameRoom) {
-//                org.example.templets.dto.MyGameRoom myRoom = (org.example.templets.dto.MyGameRoom) room;
-//                totalScore = myRoom.getTotalScore(player.getSenderId()); // getSenderId() 사용
-//                //방을 가져와서 변경할 점수를 기입. 만약 승수로 판단하는게임이라면 그냥 없어된다. Score 는  0  이나 null로
-//            }
-
-            // 3. 점수 전송
-            scoreSender.sendScore(
-                    player.getDbUsername(),
-                    "My_Game_Title", // 🔥 실제 게임 이름으로 변경
-                    totalScore
-            );
         }
     }
     public void exit(String roomId, GameMessage message) {

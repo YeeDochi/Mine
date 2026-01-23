@@ -12,23 +12,251 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" href="https://cdn.simpleicons.org/github/ffffff" type="image/svg+xml">
     <style>
-        /* 공통 스타일 보강 */
-        .hidden { display: none !important; }
+        /* =========================================
+           [1] 레이아웃 & 패널 (Yacht 스타일 적용)
+           ========================================= */
+        /* 기본 박스 사이징 초기화 (깨짐 방지) */
+        * { box-sizing: border-box; }
+
+        .game-layout {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            min-height: 600px; /* 최소 높이만 유지 */
+        }
+        /* 오른쪽 사이드바 (플레이어 + 채팅) */
+        #sidebar-wrapper {
+            display: flex; flex-direction: column;
+            height: 100%; flex: 1; min-width: 300px;
+            border: 1px solid var(--border-color); border-radius: 6px;
+            background: var(--box-bg); overflow: hidden;
+        }
+
+        /* 플레이어 목록 */
+        #player-list-box {
+            flex: 0 0 160px; /* 높이 고정 */
+            display: flex; flex-direction: column;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--box-bg);
+        }
+        #user-list-area {
+            flex: 1; overflow-y: auto;
+            padding: 0;
+            background: var(--box-bg);
+        }
+
+        /* 플레이어 목록 아이템 스타일 (상태 배지 포함) */
+        .user-row {
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 14px;
+            cursor: default;
+        }
+        .user-row.active {
+            background-color: rgba(45, 164, 78, 0.1); /* 연한 초록색 배경 */
+            font-weight: bold;
+            border-left: 4px solid var(--status-online);
+        }
+        .user-row span { display: flex; align-items: center; gap: 5px; }
+
+        /* 채팅 패널 */
+        #right-panel {
+            flex: 1;
+            display: flex; flex-direction: column;
+            min-height: 0; /* Flex 자식 스크롤 버그 방지 */
+            background: var(--box-bg);
+        }
+        .panel-header {
+            padding: 10px 15px;
+            background: var(--bg-header);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600; font-size: 13px; color: var(--text-secondary);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        /* 채팅 메시지 영역 */
+        #chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        #messages { flex: 1; overflow-y: auto; padding: 10px; }
+        .msg-input-box { padding: 10px; border-top: 1px solid var(--border-color); display: flex; gap: 5px; background: var(--bg-header); }
+        .msg-input-box input { flex: 1; width: auto; }
+
+        /* 게임 스테이지 (중앙) */
         .game-stage {
             border: 1px solid var(--border-color);
-            background: white;
-            width: 600px; height: 500px;
+            background: var(--box-bg);
+
+            /* 너비/높이 꽉 채우기 & 넘침 방지 */
+            flex: 1;
+            width: 100%;
+            max-width: 100%; /* 부모보다 커지지 않게 강제 */
+            height: 100%;
+            min-height: 500px;
+
             position: relative;
             border-radius: 6px;
-            overflow: hidden;
-        }
-        /* 채팅창 등 기존 CSS 유지 */
-        #chat-container { border: 1px solid var(--border-color); border-radius: 6px; background: var(--box-bg); display: flex; flex-direction: column; height: 500px; flex: 1; }
+            overflow: hidden; /* 스크롤 없이 꽉 차게 */
 
-        .msg-item { padding: 4px 0; border-bottom: 1px solid var(--border-color); }
-        .msg-system { background: var(--bg-header); padding: 8px; border-radius: 6px; text-align: center; margin: 5px 0; color: var(--text-secondary); font-size: 12px; }
-        .game-layout { display: flex; gap: 20px; }
-        .room-item { padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; cursor: pointer;}
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+
+            /* 내부 여백 (이만큼은 무조건 비워둠) */
+            padding: 10px;
+        }
+
+        /* 상태별 색상 (JS에서 style.background로 덮어쓰지만 기본값 설정) */
+        .badge.green { background-color: var(--status-online); }
+        .badge.red { background-color: var(--status-offline); }
+
+        /* [3] 지뢰찾기 보드 (GitHub 테마) */
+        #board {
+            display: grid;
+            /* gap은 JS에서 동적으로 제어 */
+            padding: 10px;
+            background: var(--bg-header);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            user-select: none;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+
+            /* 보드가 스테이지보다 커지지 않게 제한 */
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* [수정] 셀 스타일 */
+        .cell {
+            /* JS 계산값 적용 */
+            width: var(--cell-size, 30px);
+            height: var(--cell-size, 30px);
+            font-size: calc(var(--cell-size, 30px) * 0.6); /* 글자 크기 자동 조절 */
+
+            background-color: var(--box-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 15%;
+
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--text-primary);
+            box-sizing: border-box; /* 테두리 포함 크기 계산 */
+        }
+        .cell:hover { background-color: var(--row-hover); transform: translateY(-1px); }
+        .cell.open { background-color: var(--btn-bg); border-color: transparent; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); cursor: default; transform: none; }
+        .cell.mine { background-color: var(--status-offline); color: white; border-color: var(--status-offline); }
+
+        /* 숫자 색상 */
+        .num-1 { color: #0969da; } .num-2 { color: #2da44e; } .num-3 { color: #cf222e; }
+        .num-4 { color: #8250df; } .num-5 { color: #bf3989; } .num-6 { color: #0550ae; }
+
+        .disabled-board { opacity: 0.6; pointer-events: none; filter: grayscale(1); }
+        .pulse { animation: pulse-border 1.5s infinite; }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(45, 164, 78, 0.4); border-color: var(--status-online); }
+            70% { box-shadow: 0 0 0 6px rgba(45, 164, 78, 0); border-color: var(--status-online); }
+            100% { box-shadow: 0 0 0 0 rgba(45, 164, 78, 0); }
+        }
+
+        /* [4] 모바일 반응형 & 플로팅 채팅 */
+        #mobile-chat-btn, #mobile-chat-close-btn { display: none; } /* PC 숨김 */
+
+        @media (max-width: 768px) {
+            header {
+                padding: 8px 10px !important;
+                gap: 5px !important;
+            }
+
+            /* 2. 테마 버튼: "Dark/Light" 글자 숨기고 아이콘(🌓)만 표시 */
+            header .theme-btn {
+                font-size: 0 !important; /* 글자 숨김 */
+                width: 32px; height: 32px;
+                padding: 0 !important;
+                display: flex; align-items: center; justify-content: center;
+            }
+            header .theme-btn::after {
+                content: "🌓"; /* 아이콘으로 대체 */
+                font-size: 16px;
+                color: var(--text-primary);
+            }
+            .repo-breadcrumb .user-name,
+            .repo-breadcrumb .repo-name {
+                font-size: 14px !important; /* 기존(보통 16~18px)보다 작게 */
+            }
+            /* 3. 닉네임: 폰트 줄이고 너무 길면 ... 처리 */
+            #loggedInArea { gap: 5px; }
+            #loggedInArea span {
+                white-space: nowrap; font-size: 12px !important;
+                max-width: 70px; overflow: hidden; text-overflow: ellipsis;
+                display: inline-block; vertical-align: middle;
+            }
+            /* 1. 로비/로그인 화면 꽉 채우기 (우측 공백 제거) */
+            body, html { overflow-x: hidden; width: 100%; }
+            .container { padding: 0 10px !important; width: 100%; box-sizing: border-box; }
+            .box { width: 100% !important; margin: 0 auto; }
+            #lobby-screen .box > div:last-child > div:first-child {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+            }
+            #lobby-screen .box > div:last-child > div:first-child span {
+                white-space: nowrap !important; /* 줄바꿈 금지 */
+                flex-shrink: 0; /* 너비 줄어듦 방지 */
+            }
+            /* 2. 로비 입력창 세로 배치 (Yacht 로직 적용) */
+            /* 대기실 박스 내부의 두 번째 div(입력 영역)를 세로 정렬로 변경 */
+            #lobby-screen .box > div:nth-child(2) {
+                flex-direction: column !important;
+                gap: 8px !important;
+            }
+            #roomNameInput, #lobby-screen button {
+                width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+            }
+
+            /* 3. 게임 화면 레이아웃 */
+            .game-layout { flex-direction: column; align-items: center; gap: 15px; height: auto; }
+            .game-stage {
+                padding: 5px !important; /* 기존 20px -> 5px로 축소 */
+                width: 100vw !important; /* 화면 가로폭 전체 사용 */
+                max-width: 100vw !important;
+                border: none; /* 모바일엔 테두리 없애서 공간 확보 (선택사항) */
+            }
+
+            #board {
+                padding: 2px !important; /* 보드 내부 패딩도 최소화 */
+                width: 100%;             /* 부모 영역 꽉 채우기 */
+                box-sizing: border-box;
+            }
+
+            /* 4. 사이드바 투명화 및 높이 해제 */
+            #sidebar-wrapper { width: 100%; height: auto; border: none; background: transparent; }
+            #player-list-box { border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 80px; }
+
+            /* 5. 채팅 플로팅 (평소엔 숨김 -> active 클래스 붙으면 전체화면) */
+            #right-panel {
+                display: none;
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                z-index: 2000; background: var(--box-bg);
+            }
+            #right-panel.active { display: flex !important; }
+
+            /* 6. 모바일 채팅 버튼 스타일 */
+            #mobile-chat-btn {
+                display: flex; align-items: center; justify-content: center;
+                position: fixed; bottom: 25px; right: 25px;
+                width: 56px; height: 56px; border-radius: 50%;
+                background-color: var(--link-color); color: white;
+                font-size: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1500;
+                border: none; cursor: pointer;
+            }
+            #mobile-chat-close-btn { display: block; background: none; border: none; font-size: 1.4em; }
+
+            /* 7. 지뢰판 셀 크기 조정 */
+            .cell { width: 34px; height: 34px; font-size: 14px; }
+        }
     </style>
     <link rel="icon" href="https://cdn.simpleicons.org/github/ffffff" type="image/svg+xml">
 </head>
@@ -69,8 +297,17 @@
         <div style="padding: 16px; display:flex; gap:10px;">
             <input type="text" id="roomNameInput" placeholder="방 제목" value="새로운 게임방" style="flex:2;">
             <div id="game-options-area"></div>
-            <button class="btn-primary" onclick="Core.createRoom()">방 만들기</button>
-            <button class="btn-default" onclick="Core.showRanking()">🏆 랭킹</button>
+            <div style="display:flex; gap:10px; justify-content: space-between;">
+                <select id="mapSetting" style="padding: 6px; border: 1px solid var(--border-color); border-radius: 4px;">
+                    <option value="10,10,10">🌱 초급 (10x10, 지뢰 10)</option>
+                    <option value="15,15,30">🌿 중급 (15x15, 지뢰 30)</option>
+                    <option value="20,20,60">🔥 고급 (20x20, 지뢰 60)</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-primary" id ="btn-create-room" onclick="createCustomRoom()">방 만들기</button>
+                <button class="btn-default" onclick="Core.showRanking()">🏆 랭킹</button>
+            </div>
         </div>
         <div style="max-height: 400px; overflow-y: auto;">
             <div style="padding: 10px 16px; background:var(--bg-header); border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between;">
@@ -83,40 +320,52 @@
 </div>
 
 <div id="game-screen" class="container hidden">
+    <button id="mobile-chat-btn" onclick="Core.toggleChat()">💬</button>
+
     <div class="game-meta" style="display:flex; justify-content:space-between; margin-bottom:10px; align-items:center;">
         <div>
             <strong id="room-title-text" style="font-size: 18px;">방 제목</strong>
             <span id="game-status" class="badge">대기 중</span>
             <span id="room-user-count" class="badge" style="margin-left: 5px; color: var(--text-secondary);"></span>
         </div>
-        <div id="custom-header-area"></div>
         <div>
             <button id="startBtn" class="btn-primary" onclick="Core.startGame()">게임 시작</button>
             <button class="btn-danger" onclick="Core.exitRoom()">나가기</button>
         </div>
     </div>
 
-    <div id="game-tools-area" style="margin-bottom:10px;"></div>
-
     <div class="game-layout">
-        <div id="game-stage" class="game-stage"></div>
+        <div class="game-stage">
+            <div id="board"></div>
+        </div>
 
-        <div id="chat-container">
-            <div class="box-header" style="padding: 8px;">채팅</div>
-            <div id="messages"></div>
+        <div id="sidebar-wrapper">
+            <div id="player-list-box">
+                <div class="panel-header">플레이어 목록</div>
+                <div id="user-list-area"></div>
+            </div>
 
-            <div style="padding: 10px; border-top: 1px solid var(--border-color); display:flex; gap:5px;">
-                <button class="btn-default" onclick="Core.openImageModal()" style="padding: 0 10px;" title="이미지 전송">
-                    <i class="fas fa-images"></i>
-                </button>
+            <div id="right-panel">
+                <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color);">
+                    <span>채팅</span>
+                    <button id="mobile-chat-close-btn" onclick="Core.toggleChat()">❌</button>
+                </div>
 
-                <input type="text" id="chatInput" placeholder="입력..." onkeypress="if(event.key==='Enter') Core.sendChat()">
-                <button class="btn-primary" onclick="Core.sendChat()">전송</button>
+                <div id="chat-area">
+                    <div id="messages"></div>
+
+                    <div class="msg-input-box">
+                        <button class="btn-default" onclick="Core.openImageModal()" style="padding: 0 8px; margin-right:5px;" title="이미지 전송">
+                            <i class="fas fa-images"></i>
+                        </button>
+                        <input type="text" id="chatInput" placeholder="입력..." onkeypress="if(event.key==='Enter') Core.sendChat()">
+                        <button class="btn-primary" onclick="Core.sendChat()">전송</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
-
 <div id="ranking-modal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:999;">
     <div class="box" style="width:360px; text-align: center;">
         <div class="box-header">🏆 게임 결과</div>
@@ -211,4 +460,46 @@
 </body>
 <script src="/Mine/js/game-core.js"></script> <!-- 경로는 엔진엑스를 추가하면 수정할것.-->
 <script src="/Mine/js/mine.js"></script>  <!--추가 구현해야할 코드를 구현한뒤 연결-->
+<script>
+    function createCustomRoom() {
+        const nameInput = document.getElementById('roomNameInput');
+        const mapSelect = document.getElementById('mapSetting');
+        const createBtn = document.getElementById('btn-create-room');
+
+        const name = nameInput.value.trim();
+        if (!name) return Core.showAlert("방 제목을 입력하세요.");
+
+        // 선택값 파싱 (rows,cols,mines)
+        const [rows, cols, mines] = mapSelect.value.split(',');
+
+        // 버튼 잠금
+        createBtn.disabled = true;
+        const originalText = createBtn.innerText;
+        createBtn.innerText = "생성 중...";
+
+        // [핵심] API 직접 호출 (파라미터 포함)
+        // Core.js에 있는 apiPath가 비공개 변수라면 '/Mine' 등으로 하드코딩하거나
+        // Core.init할 때 전역변수로 빼두는 방법이 있지만, 여기선 경로가 명확하므로 직접 호출합니다.
+        const apiPath = "/Mine/api/rooms";
+
+        fetch(`${apiPath}?name=${encodeURIComponent(name)}&rows=${rows}&cols=${cols}&mines=${mines}`, {
+            method: 'POST'
+        })
+            .then(res => {
+                if(!res.ok) throw new Error("생성 실패");
+                return res.json();
+            })
+            .then(room => {
+                // 생성 성공 시 Core의 입장 기능 사용
+                Core.joinRoom(room.roomId, room.roomName);
+            })
+            .catch(err => {
+                Core.showAlert("오류: " + err);
+            })
+            .finally(() => {
+                createBtn.disabled = false;
+                createBtn.innerText = originalText;
+            });
+    }
+</script>
 </html>

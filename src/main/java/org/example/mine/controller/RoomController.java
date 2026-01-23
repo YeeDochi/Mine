@@ -27,9 +27,17 @@ public class RoomController {
 
     // 2. 방 생성 (POST /api/rooms?name=...)
     @PostMapping
-    public BaseGameRoom createRoom(@RequestParam String name) {
-        return roomService.createRoom(name);
+    public BaseGameRoom createRoom(@RequestParam String name,
+                                   @RequestParam(defaultValue = "10") int rows,
+                                   @RequestParam(defaultValue = "10") int cols,
+                                   @RequestParam(defaultValue = "15") int mines) {
+        if(rows < 5 || rows > 30) rows = 10;
+        if(cols < 5 || cols > 30) cols = 10;
+        if(mines >= (rows * cols)) mines = (rows * cols) / 5; // 지뢰가 너무 많으면 조정
+
+        return roomService.createRoom(name, rows, cols, mines);
     }
+
 
     // 3. 특정 방 조회 (GET /api/rooms/{roomId})
     @GetMapping("/{roomId}")
@@ -38,7 +46,7 @@ public class RoomController {
     }
 
     @GetMapping("/rankings")
-    public ResponseEntity<Object> getRanking() {
-        return scoreSender.ranking("GAME_NAME_HERE");
+    public ResponseEntity<Object> getRanking(@RequestParam(required = false) String gameType) {
+        return scoreSender.ranking(gameType);
     }
 }
