@@ -22,17 +22,28 @@
         .game-layout {
             display: flex;
             gap: 20px;
-            align-items: flex-start;
-            min-height: 600px; /* 최소 높이만 유지 */
+
+            /* ★ 핵심: 화면 크기 상관없이 항상 이 높이 유지 */
+            height: 720px;
+
+            /* 혹시 화면이 이보다 작을 땐 스크롤 생기게 */
+            min-height: 720px;
         }
         /* 오른쪽 사이드바 (플레이어 + 채팅) */
         #sidebar-wrapper {
-            display: flex; flex-direction: column;
-            height: 100%; flex: 1; min-width: 300px;
-            border: 1px solid var(--border-color); border-radius: 6px;
-            background: var(--box-bg); overflow: hidden;
-        }
+            display: flex;
+            flex-direction: column;
+            height: 100%;
 
+            /* ★ 핵심: 비율(flex:1) 대신 고정 너비(300px) 사용 */
+            width: 300px;
+            flex: none; /* 늘어나거나 줄어들지 않음 */
+
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--box-bg);
+            overflow: hidden;
+        }
         /* 플레이어 목록 */
         #player-list-box {
             flex: 0 0 160px; /* 높이 고정 */
@@ -79,34 +90,25 @@
         /* 채팅 메시지 영역 */
         #chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         #messages { flex: 1; overflow-y: auto; padding: 10px; }
-        .msg-input-box { padding: 10px; border-top: 1px solid var(--border-color); display: flex; gap: 5px; background: var(--bg-header); }
-        .msg-input-box input { flex: 1; width: auto; }
+
 
         /* 게임 스테이지 (중앙) */
         .game-stage {
+            flex: 1;          /* 남은 가로 공간 모두 차지 */
+            height: 100%;     /* 높이 100% 채움 */
+
             border: 1px solid var(--border-color);
             background: var(--box-bg);
-
-            /* 너비/높이 꽉 채우기 & 넘침 방지 */
-            flex: 1;
-            width: 100%;
-            max-width: 100%; /* 부모보다 커지지 않게 강제 */
-            height: 100%;
-            min-height: 500px;
-
             position: relative;
             border-radius: 6px;
-            overflow: hidden; /* 스크롤 없이 꽉 차게 */
+            overflow: hidden;
 
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-
-            /* 내부 여백 (이만큼은 무조건 비워둠) */
             padding: 10px;
         }
-
         /* 상태별 색상 (JS에서 style.background로 덮어쓰지만 기본값 설정) */
         .badge.green { background-color: var(--status-online); }
         .badge.red { background-color: var(--status-offline); }
@@ -159,7 +161,48 @@
             70% { box-shadow: 0 0 0 6px rgba(45, 164, 78, 0); border-color: var(--status-online); }
             100% { box-shadow: 0 0 0 0 rgba(45, 164, 78, 0); }
         }
+        .msg-input-box {
+            padding: 10px;
+            border-top: 1px solid var(--border-color);
+            display: flex;       /* 가로 배치 */
+            gap: 8px;            /* 사이 간격 */
+            background: var(--bg-header);
+            align-items: center; /* 수직 중앙 정렬 */
+        }
 
+        /* 1. 입력창: 남은 공간을 전부 차지 (유동적) */
+        .msg-input-box input {
+            flex: 1;             /* 핵심: 남는 공간 꽉 채우기 */
+            min-width: 0;        /* 화면이 작아져도 버튼을 밀어내지 않음 */
+            padding: 10px;       /* 편안한 여백 */
+            font-size: 14px;
+            outline: none;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+        .msg-input-box input:focus {
+            border-color: var(--link-color);
+        }
+
+        /* 2. 버튼: 글씨가 줄바꿈되지 않게 가로로 고정 */
+        .msg-input-box button {
+            white-space: nowrap; /* 핵심: 글씨 줄바꿈 금지 */
+            flex-shrink: 0;      /* 핵심: 공간이 좁아도 찌그러지지 않음 */
+            padding: 10px 16px;  /* 입력창과 비슷한 크기로 맞춤 */
+            cursor: pointer;
+            font-weight: 600;
+
+            /* 높이 강제 제거 (내용물에 맞게 자연스럽게) */
+            height: auto !important;
+            line-height: normal;
+        }
+
+        /* 이미지 버튼 아이콘 정렬 */
+        .msg-input-box button i {
+            font-size: 16px;
+        }
         /* [4] 모바일 반응형 & 플로팅 채팅 */
         #mobile-chat-btn, #mobile-chat-close-btn { display: none; } /* PC 숨김 */
 
@@ -243,7 +286,44 @@
                 z-index: 2000; background: var(--box-bg);
             }
             #right-panel.active { display: flex !important; }
+            .game-meta {
+                flex-direction: column !important; /* 가로 -> 세로 변경 */
+                align-items: flex-start !important;
+                gap: 10px !important;
+            }
+            /* 버튼 그룹도 꽉 차게 */
+            .game-meta > div:last-child {
+                width: 100%;
+                display: flex;
+                justify-content: flex-end; /* 버튼 오른쪽 정렬 */
+                gap: 10px;
+            }
+            .game-meta button {
+                flex: 1; /* 버튼들을 균등하게 키워서 터치하기 편하게 */
+            }
 
+            /* 2. 채팅 입력창: 높이 강제 고정 (모바일 깨짐 방지) */
+            .msg-input-box {
+                padding: 8px !important;
+            }
+            .msg-input-box input,
+            .msg-input-box button {
+                height: 40px !important;   /* 높이 40px로 강제 통일 */
+                font-size: 16px !important; /* iOS 자동확대 방지 */
+                padding: 0 10px !important; /* 패딩 재설정 */
+                line-height: normal !important;
+
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            /* 이미지 버튼은 너비 자동 */
+            .msg-input-box button:first-child {
+                flex: 0 0 auto;
+                width: 40px !important; /* 정사각형 */
+                padding: 0 !important;
+            }
             /* 6. 모바일 채팅 버튼 스타일 */
             #mobile-chat-btn {
                 display: flex; align-items: center; justify-content: center;
@@ -255,8 +335,6 @@
             }
             #mobile-chat-close-btn { display: block; background: none; border: none; font-size: 1.4em; }
 
-            /* 7. 지뢰판 셀 크기 조정 */
-            .cell { width: 34px; height: 34px; font-size: 14px; }
         }
     </style>
     <link rel="icon" href="https://cdn.simpleicons.org/github/ffffff" type="image/svg+xml">

@@ -132,6 +132,8 @@ function renderUserList(names, eliminatedIds, currentTurnId) {
         listEl.appendChild(row);
     });
 }
+// [mine.js] renderBoard 함수 전체 교체
+
 function renderBoard(data, myId) {
     const boardEl = document.getElementById("board");
     const stageEl = document.querySelector(".game-stage");
@@ -142,45 +144,53 @@ function renderBoard(data, myId) {
     const cols = data.board[0].length;
 
     // ============================================================
-    // ★ [수정] 모바일 맞춤형 정밀 크기 계산
+    // ★ [수정] "무조건 채워넣기" (Fit-to-Width) 로직
     // ============================================================
 
-    // 1. 현재 스테이지의 '실제' 너비/높이 측정 (소수점까지 정밀하게)
-    const rect = stageEl.getBoundingClientRect();
-    const stageW = rect.width;
-    const stageH = rect.height;
-
-    // 2. 모바일인지 PC인지 확인 (768px 기준)
+    // 1. 현재 화면의 전체 너비 가져오기
+    // stageEl.clientWidth를 쓰면 스크롤바 영역 등이 포함될 수 있어 window.innerWidth가 모바일엔 더 안전합니다.
     const isMobile = window.innerWidth <= 768;
+    const screenW = isMobile ? window.innerWidth : stageEl.clientWidth;
+    const screenH = isMobile ? (window.innerHeight * 0.6) : stageEl.clientHeight; // 모바일은 높이 60% 정도만 사용
 
-    // 3. 여백 설정 (모바일은 아주 타이트하게, PC는 넉넉하게)
-    // 모바일: 전체 폭의 96% 사용 (좌우 2%씩 여유)
-    // PC: 고정값 60px 차감
-    const availableWidth = isMobile ? (stageW * 0.96) : (stageW - 60);
-    const availableHeight = isMobile ? (stageH - 120) : (stageH - 100);
+    // 2. 뺄 거 다 빼기 (패딩 + 보더 + 갭)
+    // 모바일: 좌우 패딩 합쳐서 10px(여유값)
+    // PC: 좌우 패딩 합쳐서 40px
+    const totalPaddingX = isMobile ? 12 : 40;
+    const totalPaddingY = isMobile ? 12 : 40;
 
-    // 4. 셀 간격(Gap) 설정 (CSS와 일치)
-    const gap = 2;
+    // 셀 사이의 간격 (CSS gap: 2px)
+    const gap = 1; // 2px로 하면 모바일에서 너무 벌어지니 1px로 줄이거나 계산식에 반영
     boardEl.style.gap = `${gap}px`;
 
+    // 갭이 차지하는 총 너비 = (칸수 - 1) * 갭크기
     const totalGapW = (cols - 1) * gap;
     const totalGapH = (rows - 1) * gap;
 
-    // 5. 셀 크기 계산 (공간 / 칸수)
-    const maxCellW = (availableWidth - totalGapW) / cols;
-    const maxCellH = (availableHeight - totalGapH) / rows;
+    // 3. 순수하게 셀들이 사용할 수 있는 공간 계산
+    const availableW = screenW - totalPaddingX - totalGapW;
+    const availableH = screenH - totalPaddingY - totalGapH;
 
-    // 가로/세로 중 더 작은 쪽에 맞춤 (화면을 벗어나지 않게)
-    let optimalSize = Math.floor(Math.min(maxCellW, maxCellH));
+    // 4. 나눗셈! (공간 / 칸수) -> 소수점 내림
+    const cellW = Math.floor(availableW / cols);
+    const cellH = Math.floor(availableH / rows);
 
-    // 6. 안전장치: 너무 작아지면 터치가 힘드니 최소값 보정 (모바일 20칸일 경우 어쩔 수 없이 작아짐)
-    if (optimalSize < 10) optimalSize = 10; // 극한 상황
-    // 최대 크기 제한 (PC에서 너무 커지지 않게)
-    if (optimalSize > 45) optimalSize = 45;
+    // 5. 가로/세로 중 더 작은 쪽에 맞춰서 정사각형 만들기
+    // (단, PC에서는 너무 커지면 안되니 최대값 45px 제한은 둠)
+    let optimalSize = Math.min(cellW, cellH);
 
-    // 7. 스타일 적용
+    // ★ [핵심] 최소 크기 제한(10px)을 제거했습니다.
+    // 대신 0px이 되면 안보이니까 최소 5px 정도의 안전장치만 둡니다.
+    if (optimalSize < 5) optimalSize = 5;
+
+    // PC에서 너무 커지는 것만 방지
+    if (!isMobile && optimalSize > 40) optimalSize = 40;
+
+    // 6. 스타일 적용
     boardEl.style.setProperty('--cell-size', `${optimalSize}px`);
+    // auto-fill 대신 1fr로 강제 등분
     boardEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
     // ============================================================
 
     boardEl.innerHTML = "";
